@@ -331,7 +331,10 @@
             <!-- Config View -->
             <transition name="fade" mode="out-in">
                 <div v-if="currentView === 'config'" key="config">
-                    <h2 class="fw-bold mb-4">Configuration</h2>
+                    <div class="mb-4">
+                        <h2 class="fw-bold mb-1">Configuration</h2>
+                        <p class="text-muted mb-0">View current system settings</p>
+                    </div>
                     
                     <div class="row">
                         <div class="col-md-6">
