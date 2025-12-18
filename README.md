@@ -1,5 +1,7 @@
 # OpenProxy
 
+[English](README.md) | [中文](README_CN.md)
+
 A lightweight, high-performance Intranet Penetration Tool written in Go. OpenProxy allows you to expose local servers behind NATs and firewalls to the public internet over secure tunnels.
 
 ![Dashboard Preview](https://via.placeholder.com/800x400?text=OpenProxy+Dashboard+Preview)
