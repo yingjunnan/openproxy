@@ -1,0 +1,17 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+
+# IDEs
+.idea/
+.vscode/
+
+# Config
+config.yaml
+config_client.yaml
+
+# Logs
+*.log

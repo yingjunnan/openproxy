@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenProxy Dashboard</title>
+    <link rel="stylesheet" href="lib/css/bootstrap.min.css">
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --primary-color: #4361ee;
+            --bg-color: #f8f9fa;
+            --text-color: #2b2d42;
+        }
+        /* Mode Specific Themes */
+        .theme-server { --primary-color: #7209b7; } /* Purple */
+        .theme-client { --primary-color: #00b4d8; } /* Cyan */
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+        [v-cloak] { display: none; }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: #fff;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            z-index: 100;
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-color);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mode-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: white;
+            background: var(--primary-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav-item {
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
+            color: #6c757d;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+        .nav-item:hover {
+            background-color: #f8f9fa;
+            color: var(--primary-color);
+        }
+        .nav-item.active {
+            background-color: #eff3ff; /* Will be tinted by primary in JS? No, static color for now or use var */
+            background-color: rgba(0,0,0,0.05);
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+        }
+        
+        /* Cards */
+        .stat-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            transition: transform 0.2s;
+            border: none;
+            height: 100%;
+        }
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+            background: rgba(0,0,0,0.05);
+        }
+        .stat-label { color: #8d99ae; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 2rem; font-weight: 700; color: var(--text-color); margin-bottom: 0; }
+        
+        /* Table */
+        .custom-table-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        }
+        .table-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .table thead th {
+            border-top: none;
+            border-bottom: 1px solid #f0f0f0;
+            color: #8d99ae;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            padding: 1rem 1.5rem;
+        }
+        .table tbody td {
+            padding: 1rem 1.5rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #f8f9fa;
+            color: #495057;
+        }
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #e6f7ea;
+            color: #28a745;
+        }
+        .status-badge.offline {
+            background: #fff5f5;
+            color: #dc3545;
+        }
+        
+        /* Config View */
+        .config-group {
+            margin-bottom: 1.5rem;
+        }
+        .config-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #8d99ae;
+            margin-bottom: 0.5rem;
+        }
+        .config-value {
+            font-family: 'Consolas', monospace;
+            background: #f1f3f5;
+            padding: 0.75rem;
+            border-radius: 8px;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        
+        /* Animations */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body :class="themeClass">
+    <div id="app" v-cloak>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                OpenProxy
+            </div>
+            
+            <!-- Mode Indicator -->
+            <div class="mode-badge">
+                {{ status.mode }} MODE
+            </div>
+
+            <div class="nav-item" :class="{ active: currentView === 'dashboard' }" @click="currentView = 'dashboard'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                Dashboard
+            </div>
+            <div class="nav-item" :class="{ active: currentView === 'config' }" @click="loadAndShowConfig">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Configuration
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            
+            <!-- Dashboard View -->
+            <transition name="fade" mode="out-in">
+                <div v-if="currentView === 'dashboard'" key="dashboard">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h2 class="fw-bold mb-1">Dashboard</h2>
+                            <p class="text-muted mb-0">Overview of your system</p>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="px-3 py-2 bg-white rounded-pill shadow-sm d-flex align-items-center gap-2">
+                                <div :class="['status-dot', connected ? 'bg-success' : 'bg-danger']" style="width: 8px; height: 8px; border-radius: 50%;"></div>
+                                <span class="fw-bold small">{{ connected ? 'Online' : 'Offline' }}</span>
+                            </div>
+                            <button v-if="status.mode === 'client'" class="btn btn-primary rounded-pill px-4 shadow-sm" style="background: var(--primary-color); border-color: var(--primary-color);" @click="showAddModal">+ New Tunnel</button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Row -->
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                </div>
+                                <div class="stat-label">Total Tunnels</div>
+                                <div class="stat-value">{{ tunnels.length }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-icon" style="color: #28a745;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                </div>
+                                <div class="stat-label">Active Connections</div>
+                                <div class="stat-value">{{ totalConnections }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-icon" style="color: #6c757d;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                                </div>
+                                <div class="stat-label">System Uptime</div>
+                                <div class="stat-value">Running</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart Row -->
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-8">
+                            <div class="stat-card">
+                                <h5 class="fw-bold mb-4">Traffic Activity</h5>
+                                <div class="chart-container">
+                                    <canvas id="trafficChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="stat-card">
+                                <h5 class="fw-bold mb-4">Protocol Distribution</h5>
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="protocolChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tunnels Table -->
+                    <div class="custom-table-card">
+                        <div class="table-header">
+                            <h5 class="fw-bold mb-0">Active Tunnels</h5>
+                            <input type="text" class="form-control form-control-sm" placeholder="Search..." style="width: 200px; border-radius: 20px;">
+                        </div>
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Protocol</th>
+                                    <th v-if="status.mode === 'client'">Local Address</th>
+                                    <th>Remote Port</th>
+                                    <th v-if="status.mode === 'server'">Connections</th>
+                                    <th>Status</th>
+                                    <th v-if="status.mode === 'client'" class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="t in tunnels" :key="t.name">
+                                    <td class="fw-bold">{{ t.name }}</td>
+                                    <td><span class="badge bg-light text-dark">{{ t.protocol.toUpperCase() }}</span></td>
+                                    <td v-if="status.mode === 'client'" class="text-muted font-monospace">{{ t.local_addr }}</td>
+                                    <td class="font-monospace" style="color: var(--primary-color);">{{ t.remote_port }}</td>
+                                    <td v-if="status.mode === 'server'">{{ t.active_conns }}</td>
+                                    <td>
+                                        <span class="status-badge" :class="{ offline: !connected }">
+                                            {{ connected ? 'Active' : 'Waiting' }}
+                                        </span>
+                                    </td>
+                                    <td v-if="status.mode === 'client'" class="text-end">
+                                        <button class="btn btn-link text-danger p-0" @click="removeTunnel(t.name)">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr v-if="tunnels.length === 0">
+                                    <td colspan="7" class="text-center py-5 text-muted">
+                                        No active tunnels found
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </transition>
+
+            <!-- Config View -->
+            <transition name="fade" mode="out-in">
+                <div v-if="currentView === 'config'" key="config">
+                    <h2 class="fw-bold mb-4">Configuration</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="stat-card mb-4">
+                                <h5 class="fw-bold mb-3 pb-2 border-bottom">General Settings</h5>
+                                <div class="config-group">
+                                    <div class="config-label">Running Mode</div>
+                                    <div class="config-value">{{ fullConfig.mode }}</div>
+                                </div>
+                                <div class="config-group">
+                                    <div class="config-label">Web UI Port</div>
+                                    <div class="config-value">{{ fullConfig.web.port }}</div>
+                                </div>
+                                <div class="config-group">
+                                    <div class="config-label">Web Username</div>
+                                    <div class="config-value">{{ fullConfig.web.username }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" v-if="status.mode === 'server'">
+                            <div class="stat-card mb-4">
+                                <h5 class="fw-bold mb-3 pb-2 border-bottom">Server Settings</h5>
+                                <div class="config-group">
+                                    <div class="config-label">Control Port</div>
+                                    <div class="config-value">{{ fullConfig.server.control_port }}</div>
+                                </div>
+                                <div class="config-group">
+                                    <div class="config-label">Port Range</div>
+                                    <div class="config-value">{{ fullConfig.server.port_range }}</div>
+                                </div>
+                                <div class="config-group">
+                                    <div class="config-label">Auth Token</div>
+                                    <div class="config-value">{{ fullConfig.server.token }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" v-if="status.mode === 'client'">
+                            <div class="stat-card mb-4">
+                                <h5 class="fw-bold mb-3 pb-2 border-bottom">Client Settings</h5>
+                                <div class="config-group">
+                                    <div class="config-label">Server Address</div>
+                                    <div class="config-value">{{ fullConfig.client.server_addr }}</div>
+                                </div>
+                                <div class="config-group">
+                                    <div class="config-label">Auth Token</div>
+                                    <div class="config-value">{{ fullConfig.client.token }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info d-flex align-items-center">
+                        <svg width="24" height="24" class="me-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        <div>
+                            <strong>Read Only:</strong> Advanced configuration changes require editing the YAML file and restarting the service.
+                        </div>
+                    </div>
+                </div>
+            </transition>
+        </div>
+
+        <!-- Add Modal -->
+        <div class="modal fade" id="addTunnelModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                    <div class="modal-header border-bottom-0 pb-0">
+                        <h5 class="modal-title fw-bold">New Tunnel</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body pt-4">
+                        <form @submit.prevent="addTunnel">
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">TUNNEL NAME</label>
+                                <input type="text" class="form-control form-control-lg" v-model="newTunnel.name" placeholder="my-web-service" required>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label text-muted small fw-bold">PROTOCOL</label>
+                                    <select class="form-select form-select-lg" v-model="newTunnel.protocol">
+                                        <option value="tcp">TCP</option>
+                                        <option value="http">HTTP</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label text-muted small fw-bold">REMOTE PORT</label>
+                                    <input type="number" class="form-control form-control-lg" v-model.number="newTunnel.remote_port" placeholder="Auto">
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label text-muted small fw-bold">LOCAL ADDRESS</label>
+                                <input type="text" class="form-control form-control-lg" v-model="newTunnel.local_addr" placeholder="127.0.0.1:80" required>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg" style="background: var(--primary-color); border-color: var(--primary-color);">Create Tunnel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="lib/js/vue.global.prod.js"></script>
+    <script src="lib/js/bootstrap.bundle.min.js"></script>
+    <script src="lib/js/chart.js"></script>
+    <script>
+        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const currentView = ref('dashboard');
+                const status = ref({ mode: 'loading', connected: false });
+                const fullConfig = ref({ web: {}, server: {}, client: {} });
+                const tunnels = ref([]);
+                const newTunnel = ref({ name: '', protocol: 'tcp', local_addr: '127.0.0.1:80', remote_port: 0 });
+                let modalInstance = null;
+                let trafficChart = null;
+                let protocolChart = null;
+                let chartInterval = null;
+
+                const historyData = ref(new Array(20).fill(0));
+
+                const themeClass = computed(() => {
+                    return status.value.mode === 'server' ? 'theme-server' : 'theme-client';
+                });
+
+                const connected = computed(() => {
+                    if (status.value.mode === 'server') return true;
+                    return status.value.connected;
+                });
+
+                const totalConnections = computed(() => {
+                    if (status.value.mode === 'client') return connected.value ? 'OK' : '-';
+                    return tunnels.value.reduce((acc, t) => acc + (t.active_conns || 0), 0);
+                });
+
+                const loadAndShowConfig = async () => {
+                    currentView.value = 'config';
+                    try {
+                        const res = await fetch('/api/config');
+                        if (res.ok) fullConfig.value = await res.json();
+                    } catch (e) { console.error(e); }
+                };
+
+                const initCharts = () => {
+                    const ctx1 = document.getElementById('trafficChart');
+                    const ctx2 = document.getElementById('protocolChart');
+                    
+                    if (!ctx1 || !ctx2) return;
+
+                    trafficChart = new Chart(ctx1.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: new Array(20).fill(''),
+                            datasets: [{
+                                label: 'Activity',
+                                data: historyData.value,
+                                borderColor: getComputedStyle(document.body).getPropertyValue('--primary-color').trim(),
+                                backgroundColor: 'rgba(0,0,0,0.05)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+                        }
+                    });
+
+                    protocolChart = new Chart(ctx2.getContext('2d'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['TCP', 'HTTP'],
+                            datasets: [{
+                                data: [0, 0],
+                                backgroundColor: [
+                                    getComputedStyle(document.body).getPropertyValue('--primary-color').trim(),
+                                    '#adb5bd'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' } },
+                            cutout: '70%'
+                        }
+                    });
+                };
+
+                const updateCharts = () => {
+                    if (!trafficChart || !protocolChart) return;
+                    
+                    // Update History
+                    let currentVal = 0;
+                    if (status.value.mode === 'server') {
+                        currentVal = tunnels.value.reduce((acc, t) => acc + (t.active_conns || 0), 0);
+                    } else {
+                        currentVal = connected.value ? 1 : 0;
+                    }
+                    
+                    historyData.value.shift();
+                    historyData.value.push(currentVal);
+                    trafficChart.data.datasets[0].data = historyData.value;
+                    trafficChart.data.datasets[0].borderColor = getComputedStyle(document.body).getPropertyValue('--primary-color').trim();
+                    trafficChart.update();
+
+                    // Update Protocol Dist
+                    const tcp = tunnels.value.filter(t => t.protocol === 'tcp').length;
+                    const http = tunnels.value.filter(t => t.protocol === 'http').length;
+                    protocolChart.data.datasets[0].data = [tcp, http];
+                    protocolChart.data.datasets[0].backgroundColor[0] = getComputedStyle(document.body).getPropertyValue('--primary-color').trim();
+                    protocolChart.update();
+                };
+
+                const fetchStatus = async () => {
+                    try {
+                        const res = await fetch('/api/status');
+                        if (res.ok) {
+                            const data = await res.json();
+                            status.value = data;
+                            tunnels.value = (data.tunnels || []).sort((a, b) => a.name.localeCompare(b.name));
+                            if (currentView.value === 'dashboard') updateCharts();
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch status", e);
+                    }
+                };
+
+                const showAddModal = () => {
+                    if (!modalInstance) {
+                        modalInstance = new bootstrap.Modal(document.getElementById('addTunnelModal'));
+                    }
+                    newTunnel.value = { name: '', protocol: 'tcp', local_addr: '127.0.0.1:80', remote_port: 0 };
+                    modalInstance.show();
+                };
+
+                const addTunnel = async () => {
+                    try {
+                        const res = await fetch('/api/tunnels', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(newTunnel.value)
+                        });
+                        if (!res.ok) {
+                            const err = await res.text();
+                            alert('Error: ' + err);
+                            return;
+                        }
+                        modalInstance.hide();
+                        fetchStatus();
+                    } catch (e) {
+                        alert('Error: ' + e);
+                    }
+                };
+
+                const removeTunnel = async (name) => {
+                    if (!confirm(`Remove tunnel "${name}"?`)) return;
+                    try {
+                        const res = await fetch(`/api/tunnels?name=${name}`, { method: 'DELETE' });
+                        if (!res.ok) {
+                            alert('Error: ' + await res.text());
+                            return;
+                        }
+                        fetchStatus();
+                    } catch (e) {
+                        alert('Error: ' + e);
+                    }
+                };
+
+                // Watch view change to re-init charts
+                watch(currentView, async (newVal) => {
+                    if (newVal === 'dashboard') {
+                        await nextTick();
+                        initCharts();
+                    }
+                });
+
+                onMounted(() => {
+                    fetchStatus();
+                    // Initial chart setup
+                    setTimeout(() => initCharts(), 100);
+                    setInterval(fetchStatus, 3000);
+                });
+
+                return {
+                    currentView,
+                    status,
+                    fullConfig,
+                    tunnels,
+                    newTunnel,
+                    themeClass,
+                    connected,
+                    totalConnections,
+                    loadAndShowConfig,
+                    showAddModal,
+                    addTunnel,
+                    removeTunnel
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
