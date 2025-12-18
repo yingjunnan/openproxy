@@ -1,0 +1,45 @@
+# OpenProxy Configuration Template
+# Rename this file to config.yaml before use.
+
+# -----------------------------------------------------------------------------
+# Global Settings
+# -----------------------------------------------------------------------------
+
+# Mode: Select the running mode for this instance.
+# Options: "server", "client"
+mode: server
+
+# Web Dashboard Configuration
+web:
+  port: 8080              # Port to access the dashboard (e.g., http://localhost:8080)
+  username: admin         # Dashboard login username
+  password: password      # Dashboard login password
+
+# -----------------------------------------------------------------------------
+# Server Mode Configuration
+# Only used if mode is "server"
+# -----------------------------------------------------------------------------
+server:
+  control_port: 7000      # Port used for client control connections
+  token: "my-secret-token" # Authentication token that clients must provide
+  port_range: "10000-20000" # Allowed range for remote ports
+
+# -----------------------------------------------------------------------------
+# Client Mode Configuration
+# Only used if mode is "client"
+# -----------------------------------------------------------------------------
+client:
+  server_addr: "127.0.0.1:7000" # Address of the OpenProxy server (IP:ControlPort)
+  token: "my-secret-token"      # Must match the server's token
+  
+  # List of Tunnels
+  tunnels:
+    - name: "web-demo"
+      protocol: "tcp"         # Protocol type (tcp, http) - currently mainly for display
+      local_addr: "127.0.0.1:80" # Local service to expose
+      remote_port: 10080      # Port on the server to map to
+
+    - name: "ssh-demo"
+      protocol: "tcp"
+      local_addr: "127.0.0.1:22"
+      remote_port: 10022
